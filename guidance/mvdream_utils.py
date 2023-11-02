@@ -41,20 +41,20 @@ class MVDream(nn.Module):
         )
 
     @torch.no_grad()
-    def get_text_embeds(self, prompts, negative_prompts):
+    def get_text_embeds(self, prompts, negative_prompts): # prompt를 임베딩으로 변환
         pos_embeds = self.encode_text(prompts).repeat(4,1,1)  # [1, 77, 768]
         neg_embeds = self.encode_text(negative_prompts).repeat(4,1,1)
         self.embeddings = torch.cat([neg_embeds, pos_embeds], dim=0)  # [2, 77, 768]
     
-    def encode_text(self, prompt):
+    def encode_text(self, prompt): # prompt를 모델에 적용해 임베딩으로 인코딩
         # prompt: [str]
         embeddings = self.model.get_learned_conditioning(prompt).to(self.device)
         return embeddings
     
     @torch.no_grad()
     def refine(self, pred_rgb, camera,
-               guidance_scale=100, steps=50, strength=0.8,
-        ):
+               guidance_scale=50, steps=20, strength=0.8,
+        ): # 이미지를 미세 조정하여 생성
 
         batch_size = pred_rgb.shape[0]
         pred_rgb_256 = F.interpolate(pred_rgb, (256, 256), mode='bilinear', align_corners=False)
@@ -94,7 +94,7 @@ class MVDream(nn.Module):
         step_ratio=None,
         guidance_scale=50,
         as_latent=False,
-    ):
+    ): # 이미지 생성 모델 훈련
         
         batch_size = pred_rgb.shape[0]
         pred_rgb = pred_rgb.to(self.dtype)
@@ -201,7 +201,7 @@ class MVDream(nn.Module):
         negative_prompts="",
         height=256,
         width=256,
-        num_inference_steps=50,
+        num_inference_steps=500,
         guidance_scale=7.5,
         latents=None,
         elevation=0,
@@ -247,6 +247,7 @@ class MVDream(nn.Module):
 if __name__ == "__main__":
     import argparse
     import matplotlib.pyplot as plt
+    from PIL import Image
 
     parser = argparse.ArgumentParser()
     parser.add_argument("prompt", type=str)
@@ -266,6 +267,9 @@ if __name__ == "__main__":
             np.concatenate([imgs[2], imgs[3]], axis=1),
         ], axis=0)
 
+        # output_image = Image.fromarray(grid)
+        # output_image.save(opt.prompt)
+        
         # visualize image
         plt.imshow(grid)
         plt.show()
