@@ -8,6 +8,7 @@ from mvdream.model_zoo import build_model
 from mvdream.ldm.models.diffusion.ddim import DDIMSampler
 
 from diffusers import DDIMScheduler
+import os
 
 class MVDream(nn.Module):
     def __init__(
@@ -259,6 +260,19 @@ if __name__ == "__main__":
 
     sd = MVDream(device)
 
+    # imgs = sd.prompt_to_img(opt.prompt, opt.negative, num_inference_steps=opt.steps)
+    
+    # grid = np.concatenate([
+    #         np.concatenate([imgs[0], imgs[1]], axis=1),
+    #         np.concatenate([imgs[2], imgs[3]], axis=1),
+    #     ], axis=0)
+    
+    # output_dir='/workspace/guidance/data'
+    
+    # output_image = Image.fromarray(grid)
+    # save_path = os.path.join(output_dir, opt.prompt + "_generated.png")
+    # output_image.save(save_path)
+    
     while True:
         imgs = sd.prompt_to_img(opt.prompt, opt.negative, num_inference_steps=opt.steps)
 
@@ -267,9 +281,12 @@ if __name__ == "__main__":
             np.concatenate([imgs[2], imgs[3]], axis=1),
         ], axis=0)
 
-        # output_image = Image.fromarray(grid)
-        # output_image.save(opt.prompt)
+        output_dir='/workspace/guidance/data'
+        
+        output_image = Image.fromarray(grid)
+        save_path = os.path.join(output_dir, opt.prompt + "_generated.png")
+        output_image.save(save_path)
         
         # visualize image
-        plt.imshow(grid)
-        plt.show()
+        # plt.imshow(grid)
+        # plt.show()

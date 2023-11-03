@@ -1,3 +1,5 @@
+from flask import Blueprint, request
+
 import os
 import cv2
 import time
@@ -14,6 +16,8 @@ from gs_renderer import Renderer, MiniCam
 
 from grid_put import mipmap_linear_grid_put_2d
 from mesh import Mesh, safe_normalize
+
+bp = Blueprint('main', __name__, url_prefix='/')
 
 class GUI:
     def __init__(self, opt):
@@ -61,9 +65,9 @@ class GUI:
         self.step = 0
         self.train_steps = 1  # steps per rendering loop
         
-        # load input data from cmdline
-        if self.opt.input is not None:
-            self.load_input(self.opt.input)
+        # # load input data from cmdline
+        # if self.opt.input is not None:
+        #     self.load_input(self.opt.input)
         
         # override prompt from cmdline
         if self.opt.prompt is not None:
@@ -266,102 +270,6 @@ class GUI:
 
         self.need_update = True
 
-        # dynamic train steps (no need for now)
-        # max allowed train time per-frame is 500 ms
-        # full_t = t / self.train_steps * 16
-        # train_steps = min(16, max(4, int(16 * 500 / full_t)))
-        # if train_steps > self.train_steps * 1.2 or train_steps < self.train_steps * 0.8:
-        #     self.train_steps = train_steps
-
-    # @torch.no_grad()
-    # def test_step(self):
-    #     # ignore if no need to update
-    #     if not self.need_update:
-    #         return
-
-    #     starter = torch.cuda.Event(enable_timing=True)
-    #     ender = torch.cuda.Event(enable_timing=True)
-    #     starter.record()
-
-    #     # should update image
-    #     if self.need_update:
-    #         # render image
-
-    #         cur_cam = MiniCam(
-    #             self.cam.pose,
-    #             self.W,
-    #             self.H,
-    #             self.cam.fovy,
-    #             self.cam.fovx,
-    #             self.cam.near,
-    #             self.cam.far,
-    #         )
-
-    #         out = self.renderer.render(cur_cam, self.gaussain_scale_factor)
-
-    #         buffer_image = out[self.mode]  # [3, H, W]
-
-    #         if self.mode in ['depth', 'alpha']:
-    #             buffer_image = buffer_image.repeat(3, 1, 1)
-    #             if self.mode == 'depth':
-    #                 buffer_image = (buffer_image - buffer_image.min()) / (buffer_image.max() - buffer_image.min() + 1e-20)
-
-    #         buffer_image = F.interpolate(
-    #             buffer_image.unsqueeze(0),
-    #             size=(self.H, self.W),
-    #             mode="bilinear",
-    #             align_corners=False,
-    #         ).squeeze(0)
-
-    #         self.buffer_image = (
-    #             buffer_image.permute(1, 2, 0)
-    #             .contiguous()
-    #             .clamp(0, 1)
-    #             .contiguous()
-    #             .detach()
-    #             .cpu()
-    #             .numpy()
-    #         )
-
-    #         # display input_image
-    #         if self.overlay_input_img and self.input_img is not None:
-    #             self.buffer_image = (
-    #                 self.buffer_image * (1 - self.overlay_input_img_ratio)
-    #                 + self.input_img * self.overlay_input_img_ratio
-    #             )
-
-    #         self.need_update = False
-
-    #     ender.record()
-    #     torch.cuda.synchronize()
-    #     t = starter.elapsed_time(ender)
-
-    
-    def load_input(self, file):
-        # load image
-        print(f'[INFO] load image from {file}...')
-        img = cv2.imread(file, cv2.IMREAD_UNCHANGED)
-        if img.shape[-1] == 3:
-            if self.bg_remover is None:
-                self.bg_remover = rembg.new_session()
-            img = rembg.remove(img, session=self.bg_remover)
-
-        img = cv2.resize(img, (self.W, self.H), interpolation=cv2.INTER_AREA)
-        img = img.astype(np.float32) / 255.0
-
-        self.input_mask = img[..., 3:]
-        # white bg
-        self.input_img = img[..., :3] * self.input_mask + (1 - self.input_mask)
-        # bgr to rgb
-        self.input_img = self.input_img[..., ::-1].copy()
-
-        # load prompt
-        file_prompt = file.replace("_rgba.png", "_caption.txt")
-        if os.path.exists(file_prompt):
-            print(f'[INFO] load prompt from {file_prompt}...')
-            with open(file_prompt, "r") as f:
-                self.prompt = f.read().strip()
-
     @torch.no_grad()
     def save_model(self, mode='geo', texture_size=1024):
         os.makedirs(self.opt.outdir, exist_ok=True)
@@ -505,15 +413,6 @@ class GUI:
 
         print(f"[INFO] save model to {path}.")
 
-    # def render(self):
-    #     assert self.gui
-    #     while dpg.is_dearpygui_running():
-    #         # update texture every frame
-    #         if self.training:
-    #             self.train_step()
-    #         self.test_step()
-    #         dpg.render_dearpygui_frame()
-    
     # no gui mode
     def train(self, iters=7000):
         if iters > 0:
@@ -525,22 +424,34 @@ class GUI:
         # save
         self.save_model(mode='model')
         self.save_model(mode='geo+tex')
-        
 
-if __name__ == "__main__":
+#####################################################################################################################################
+@bp.route('/obj')
+def hello_pybo():
+    return 'make_3d_obj'
+
+
+@bp.route('/text2obj', methods=['GET', 'POST'])
+def text_to_obj():
     import argparse
     from omegaconf import OmegaConf
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--config", required=True, help="path to the yaml config file")
-    args, extras = parser.parse_known_args()
-
-    # override default config from cli
-    opt = OmegaConf.merge(OmegaConf.load(args.config), OmegaConf.from_cli(extras))
-
+    
+    prompt_txt = request.get_json()
+    # print(prompt)
+    prompt = prompt_txt['prompt']
+    print(prompt)
+    
+    config_path = "/workspace/configs/text_mv.yaml"
+    
+    opt = OmegaConf.load(config_path)
+    opt.prompt = 'a DSLR photo of ' + prompt
+    opt.save_path = prompt
+    opt.outdir = 'logs/'+prompt
+    
+    # print(opt)
+    
     gui = GUI(opt)
-
-    if opt.gui:
-        gui.render()
-    else: # 바로 실행 
-        gui.train(opt.iters)
+    
+    gui.train(opt.iters)
+    
+    return 'finish_create_obj'
