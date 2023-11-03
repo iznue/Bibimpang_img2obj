@@ -5,6 +5,7 @@ import cv2
 import time
 import tqdm
 import numpy as np
+from PIL import Image
 
 import torch
 import torch.nn.functional as F
@@ -57,7 +58,7 @@ class GUI:
 
         # input text
         self.prompt = ""
-        self.negative_prompt = ""
+        self.negative_prompt = "(bad-artist:1),(worst quality, low quality:1.4),(bad_prompt_version2:0.8),bad-hands-5,lowres,bad anatomy,bad hands,((text)),(watermark),error,missing fingers,extra digit,fewer digits,cropped,worst quality,low quality,normal quality,((username)),blurry,(extra limbs),bad-artist-anime,badhandv4,EasyNegative,ng_deepnegative_v1_75t,verybadimagenegative_v1.3,BadDream,(three hands:1.6),(three legs:1.2),(more than two hands:1.4),(more than two legs,:1.2)"
 
         # training stuff
         self.training = False
@@ -125,7 +126,25 @@ class GUI:
             if self.opt.mvdream:
                 print(f"[INFO] loading MVDream...")
                 from guidance.mvdream_utils import MVDream
+                ################################################### mvdream 4-view 이미지 출력
                 self.guidance_sd = MVDream(self.device)
+                
+                print(self.opt.prompt)
+                print('#############################################################')
+                print(self.negative_prompt)
+                print('#############################################################')
+                print(self.step)
+                print('#############################################################')
+                dream_imgs = self.guidance_sd.prompt_to_img(self.opt.prompt, self.negative_prompt)
+                gird = np.concatenate([
+                    np.concatenate([dream_imgs[0], dream_imgs[1]], axis=1),
+                    np.concatenate([dream_imgs[2], dream_imgs[3]], axis=1),
+                ], axis=0)
+                img_output_dir = '/workspace/logs/dream_result'
+                output_img = Image.fromarray(gird)
+                save_img_path = os.path.join(img_output_dir, self.opt.prompt + "_generated.png")
+                output_img.save(save_img_path)
+                
                 print(f"[INFO] loaded MVDream!")
             else:
                 print(f"[INFO] loading SD...")
