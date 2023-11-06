@@ -3,6 +3,7 @@ import cv2
 import time
 import tqdm
 import numpy as np
+from PIL import Image
 
 import torch
 import torch.nn.functional as F
@@ -15,7 +16,7 @@ from gs_renderer import Renderer, MiniCam
 from grid_put import mipmap_linear_grid_put_2d
 from mesh import Mesh, safe_normalize
 
-class GUI:
+class Step1:
     def __init__(self, opt):
         self.opt = opt  # shared with the trainer's opt to support in-place modification of rendering parameters.
         self.gui = opt.gui # enable gui
@@ -53,7 +54,7 @@ class GUI:
 
         # input text
         self.prompt = ""
-        self.negative_prompt = ""
+        self.negative_prompt = "(worst quality, low quality:1.4), zombie, (interlocked fingers), [monochrome:0.8], lowres, text, error, cropped, worst quality, low quality, jpeg artifacts, ugly, duplicate, morbid, mutilated, out of frame, extra fingers, mutated hands, poorly drawn hands, poorly drawn face, mutation, deformed, blurry, bad anatomy, bad proportions, extra limbs, cloned face, disfigured, gross proportions, malformed limbs, missing arms, missing legs, extra arms, extra legs, fused fingers, too many fingers, long neck, username, watermark"
 
         # training stuff
         self.training = False
@@ -61,9 +62,9 @@ class GUI:
         self.step = 0
         self.train_steps = 1  # steps per rendering loop
         
-        # load input data from cmdline
-        if self.opt.input is not None:
-            self.load_input(self.opt.input)
+        # # load input data from cmdline
+        # if self.opt.input is not None:
+        #     self.load_input(self.opt.input)
         
         # override prompt from cmdline
         if self.opt.prompt is not None:
@@ -122,6 +123,24 @@ class GUI:
                 print(f"[INFO] loading MVDream...")
                 from guidance.mvdream_utils import MVDream
                 self.guidance_sd = MVDream(self.device)
+                
+                ################################################### mvdream 4-view 이미지 출력
+                # print(self.opt.prompt)
+                # print('#############################################################')
+                # print(self.negative_prompt)
+                # print('#############################################################')
+                # print(self.step)
+                # print('#############################################################')
+                # dream_imgs = self.guidance_sd.prompt_to_img(self.opt.prompt, self.negative_prompt)
+                # gird = np.concatenate([
+                #     np.concatenate([dream_imgs[0], dream_imgs[1]], axis=1),
+                #     np.concatenate([dream_imgs[2], dream_imgs[3]], axis=1),
+                # ], axis=0)
+                # img_output_dir = '/workspace/data/result_images'
+                # output_img = Image.fromarray(gird)
+                # save_img_path = os.path.join(img_output_dir, self.opt.prompt + "_generated.png")
+                # output_img.save(save_img_path)
+                
                 print(f"[INFO] loaded MVDream!")
             else:
                 print(f"[INFO] loading SD...")
@@ -266,102 +285,6 @@ class GUI:
 
         self.need_update = True
 
-        # dynamic train steps (no need for now)
-        # max allowed train time per-frame is 500 ms
-        # full_t = t / self.train_steps * 16
-        # train_steps = min(16, max(4, int(16 * 500 / full_t)))
-        # if train_steps > self.train_steps * 1.2 or train_steps < self.train_steps * 0.8:
-        #     self.train_steps = train_steps
-
-    # @torch.no_grad()
-    # def test_step(self):
-    #     # ignore if no need to update
-    #     if not self.need_update:
-    #         return
-
-    #     starter = torch.cuda.Event(enable_timing=True)
-    #     ender = torch.cuda.Event(enable_timing=True)
-    #     starter.record()
-
-    #     # should update image
-    #     if self.need_update:
-    #         # render image
-
-    #         cur_cam = MiniCam(
-    #             self.cam.pose,
-    #             self.W,
-    #             self.H,
-    #             self.cam.fovy,
-    #             self.cam.fovx,
-    #             self.cam.near,
-    #             self.cam.far,
-    #         )
-
-    #         out = self.renderer.render(cur_cam, self.gaussain_scale_factor)
-
-    #         buffer_image = out[self.mode]  # [3, H, W]
-
-    #         if self.mode in ['depth', 'alpha']:
-    #             buffer_image = buffer_image.repeat(3, 1, 1)
-    #             if self.mode == 'depth':
-    #                 buffer_image = (buffer_image - buffer_image.min()) / (buffer_image.max() - buffer_image.min() + 1e-20)
-
-    #         buffer_image = F.interpolate(
-    #             buffer_image.unsqueeze(0),
-    #             size=(self.H, self.W),
-    #             mode="bilinear",
-    #             align_corners=False,
-    #         ).squeeze(0)
-
-    #         self.buffer_image = (
-    #             buffer_image.permute(1, 2, 0)
-    #             .contiguous()
-    #             .clamp(0, 1)
-    #             .contiguous()
-    #             .detach()
-    #             .cpu()
-    #             .numpy()
-    #         )
-
-    #         # display input_image
-    #         if self.overlay_input_img and self.input_img is not None:
-    #             self.buffer_image = (
-    #                 self.buffer_image * (1 - self.overlay_input_img_ratio)
-    #                 + self.input_img * self.overlay_input_img_ratio
-    #             )
-
-    #         self.need_update = False
-
-    #     ender.record()
-    #     torch.cuda.synchronize()
-    #     t = starter.elapsed_time(ender)
-
-    
-    def load_input(self, file):
-        # load image
-        print(f'[INFO] load image from {file}...')
-        img = cv2.imread(file, cv2.IMREAD_UNCHANGED)
-        if img.shape[-1] == 3:
-            if self.bg_remover is None:
-                self.bg_remover = rembg.new_session()
-            img = rembg.remove(img, session=self.bg_remover)
-
-        img = cv2.resize(img, (self.W, self.H), interpolation=cv2.INTER_AREA)
-        img = img.astype(np.float32) / 255.0
-
-        self.input_mask = img[..., 3:]
-        # white bg
-        self.input_img = img[..., :3] * self.input_mask + (1 - self.input_mask)
-        # bgr to rgb
-        self.input_img = self.input_img[..., ::-1].copy()
-
-        # load prompt
-        file_prompt = file.replace("_rgba.png", "_caption.txt")
-        if os.path.exists(file_prompt):
-            print(f'[INFO] load prompt from {file_prompt}...')
-            with open(file_prompt, "r") as f:
-                self.prompt = f.read().strip()
-
     @torch.no_grad()
     def save_model(self, mode='geo', texture_size=1024):
         os.makedirs(self.opt.outdir, exist_ok=True)
@@ -505,42 +428,33 @@ class GUI:
 
         print(f"[INFO] save model to {path}.")
 
-    # def render(self):
-    #     assert self.gui
-    #     while dpg.is_dearpygui_running():
-    #         # update texture every frame
-    #         if self.training:
-    #             self.train_step()
-    #         self.test_step()
-    #         dpg.render_dearpygui_frame()
-    
     # no gui mode
     def train(self, iters=7000):
         if iters > 0:
             self.prepare_train()
             for i in tqdm.trange(iters):
                 self.train_step()
+            ############################################################################################## mvdream 4-view 이미지 출력
+            print(self.opt.prompt)
+            print('#############################################################')
+            print(self.negative_prompt)
+            print('#############################################################')
+            print(self.step)
+            print('#############################################################')
+            dream_imgs = self.guidance_sd.prompt_to_img(self.opt.prompt, self.negative_prompt)
+            gird = np.concatenate([
+                np.concatenate([dream_imgs[0], dream_imgs[1]], axis=1),
+                np.concatenate([dream_imgs[2], dream_imgs[3]], axis=1),
+            ], axis=0)
+            img_output_dir = '/workspace/data/4-view_images'
+            output_img = Image.fromarray(gird)
+            save_img_path = os.path.join(img_output_dir, self.opt.prompt + "_generated.png")
             # do a last prune
             self.renderer.gaussians.prune(min_opacity=0.01, extent=1, max_screen_size=1)
+            output_img.save(save_img_path)
+            print(f"[INFO] Save 4-view image!")
         # save
         self.save_model(mode='model')
         self.save_model(mode='geo+tex')
-        
-
-if __name__ == "__main__":
-    import argparse
-    from omegaconf import OmegaConf
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--config", required=True, help="path to the yaml config file")
-    args, extras = parser.parse_known_args()
-
-    # override default config from cli
-    opt = OmegaConf.merge(OmegaConf.load(args.config), OmegaConf.from_cli(extras))
-
-    gui = GUI(opt)
-
-    if opt.gui:
-        gui.render()
-    else: # 바로 실행 
-        gui.train(opt.iters)
+        # output_img.save(save_img_path)
+        # print(f"[INFO] Save 4-view image!")
