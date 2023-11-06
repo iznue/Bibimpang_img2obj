@@ -127,23 +127,23 @@ class GUI:
                 print(f"[INFO] loading MVDream...")
                 from guidance.mvdream_utils import MVDream
                 ################################################### mvdream 4-view 이미지 출력
-                self.guidance_sd = MVDream(self.device)
+                # self.guidance_sd = MVDream(self.device)
                 
-                print(self.opt.prompt)
-                print('#############################################################')
-                print(self.negative_prompt)
-                print('#############################################################')
-                print(self.step)
-                print('#############################################################')
-                dream_imgs = self.guidance_sd.prompt_to_img(self.opt.prompt, self.negative_prompt)
-                gird = np.concatenate([
-                    np.concatenate([dream_imgs[0], dream_imgs[1]], axis=1),
-                    np.concatenate([dream_imgs[2], dream_imgs[3]], axis=1),
-                ], axis=0)
-                img_output_dir = '/workspace/logs/dream_result'
-                output_img = Image.fromarray(gird)
-                save_img_path = os.path.join(img_output_dir, self.opt.prompt + "_generated.png")
-                output_img.save(save_img_path)
+                # print(self.opt.prompt)
+                # print('#############################################################')
+                # print(self.negative_prompt)
+                # print('#############################################################')
+                # print(self.step)
+                # print('#############################################################')
+                # dream_imgs = self.guidance_sd.prompt_to_img(self.opt.prompt, self.negative_prompt)
+                # gird = np.concatenate([
+                #     np.concatenate([dream_imgs[0], dream_imgs[1]], axis=1),
+                #     np.concatenate([dream_imgs[2], dream_imgs[3]], axis=1),
+                # ], axis=0)
+                # img_output_dir = '/workspace/data/result_images'
+                # output_img = Image.fromarray(gird)
+                # save_img_path = os.path.join(img_output_dir, self.opt.prompt + "_generated.png")
+                # output_img.save(save_img_path)
                 
                 print(f"[INFO] loaded MVDream!")
             else:
@@ -438,11 +438,30 @@ class GUI:
             self.prepare_train()
             for i in tqdm.trange(iters):
                 self.train_step()
+            ############################################################################################## mvdream 4-view 이미지 출력
+            print(self.opt.prompt)
+            print('#############################################################')
+            print(self.negative_prompt)
+            print('#############################################################')
+            print(self.step)
+            print('#############################################################')
+            dream_imgs = self.guidance_sd.prompt_to_img(self.opt.prompt, self.negative_prompt)
+            gird = np.concatenate([
+                np.concatenate([dream_imgs[0], dream_imgs[1]], axis=1),
+                np.concatenate([dream_imgs[2], dream_imgs[3]], axis=1),
+            ], axis=0)
+            img_output_dir = '/workspace/data/result_images_test'
+            output_img = Image.fromarray(gird)
+            save_img_path = os.path.join(img_output_dir, self.opt.prompt + "_generated.png")
             # do a last prune
             self.renderer.gaussians.prune(min_opacity=0.01, extent=1, max_screen_size=1)
+            output_img.save(save_img_path)
+            print(f"[INFO] Save 4-view image!")
         # save
         self.save_model(mode='model')
         self.save_model(mode='geo+tex')
+        # output_img.save(save_img_path)
+        # print(f"[INFO] Save 4-view image!")
 
 #####################################################################################################################################
 @bp.route('/obj')
