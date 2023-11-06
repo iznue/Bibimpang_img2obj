@@ -13,7 +13,7 @@ ref_size: 256
 density_thresh: 1
 
 ### Output
-outdir: logs
+outdir: data
 mesh_format: obj
 save_path: ???
 

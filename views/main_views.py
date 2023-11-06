@@ -21,13 +21,14 @@ from mesh import Mesh, safe_normalize
 bp = Blueprint('main', __name__, url_prefix='/')
 
 class GUI:
-    def __init__(self, opt):
+    def __init__(self, opt, train_version):
         self.opt = opt  # shared with the trainer's opt to support in-place modification of rendering parameters.
         self.gui = opt.gui # enable gui
         self.W = opt.W
         self.H = opt.H
         self.cam = OrbitCamera(opt.W, opt.H, r=opt.radius, fovy=opt.fovy)
-
+        self.train_version = train_version
+        
         self.mode = "image"
         self.seed = "random"
 
@@ -58,7 +59,7 @@ class GUI:
 
         # input text
         self.prompt = ""
-        self.negative_prompt = "(bad-artist:1),(worst quality, low quality:1.4),(bad_prompt_version2:0.8),bad-hands-5,lowres,bad anatomy,bad hands,((text)),(watermark),error,missing fingers,extra digit,fewer digits,cropped,worst quality,low quality,normal quality,((username)),blurry,(extra limbs),bad-artist-anime,badhandv4,EasyNegative,ng_deepnegative_v1_75t,verybadimagenegative_v1.3,BadDream,(three hands:1.6),(three legs:1.2),(more than two hands:1.4),(more than two legs,:1.2)"
+        self.negative_prompt = "(worst quality, low quality:1.4), zombie, (interlocked fingers), [monochrome:0.8], lowres, text, error, cropped, worst quality, low quality, jpeg artifacts, ugly, duplicate, morbid, mutilated, out of frame, extra fingers, mutated hands, poorly drawn hands, poorly drawn face, mutation, deformed, blurry, bad anatomy, bad proportions, extra limbs, cloned face, disfigured, gross proportions, malformed limbs, missing arms, missing legs, extra arms, extra legs, fused fingers, too many fingers, long neck, username, watermark"
 
         # training stuff
         self.training = False
@@ -126,9 +127,9 @@ class GUI:
             if self.opt.mvdream:
                 print(f"[INFO] loading MVDream...")
                 from guidance.mvdream_utils import MVDream
+                self.guidance_sd = MVDream(self.device)
+                print(self.train_version)
                 ################################################### mvdream 4-view 이미지 출력
-                # self.guidance_sd = MVDream(self.device)
-                
                 # print(self.opt.prompt)
                 # print('#############################################################')
                 # print(self.negative_prompt)
@@ -450,7 +451,7 @@ class GUI:
                 np.concatenate([dream_imgs[0], dream_imgs[1]], axis=1),
                 np.concatenate([dream_imgs[2], dream_imgs[3]], axis=1),
             ], axis=0)
-            img_output_dir = '/workspace/data/result_images_test'
+            img_output_dir = '/workspace/data/4-view_images'
             output_img = Image.fromarray(gird)
             save_img_path = os.path.join(img_output_dir, self.opt.prompt + "_generated.png")
             # do a last prune
@@ -463,7 +464,7 @@ class GUI:
         # output_img.save(save_img_path)
         # print(f"[INFO] Save 4-view image!")
 
-#####################################################################################################################################
+##################################################################################################################################### route
 @bp.route('/obj')
 def hello_pybo():
     return 'make_3d_obj'
@@ -484,12 +485,14 @@ def text_to_obj():
     opt = OmegaConf.load(config_path)
     opt.prompt = 'a DSLR photo of ' + prompt
     opt.save_path = prompt
-    opt.outdir = 'logs/'+prompt
+    opt.outdir = 'data/'+prompt
     
-    # print(opt)
-    
-    gui = GUI(opt)
+    train_version = 1
+    gui = GUI(opt, train_version)
     
     gui.train(opt.iters)
+    ################################## finish train_1
+    train_version = 2
+    gui2 = GUI(opt, train_version)
     
     return 'finish_create_obj'
