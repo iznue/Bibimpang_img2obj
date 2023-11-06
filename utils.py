@@ -448,10 +448,14 @@ class Step1:
             ], axis=0)
             img_output_dir = '/workspace/data/4-view_images'
             output_img = Image.fromarray(gird)
+            output_one_img = Image.fromarray(dream_imgs[1])
             save_img_path = os.path.join(img_output_dir, self.opt.prompt + "_generated.png")
             # do a last prune
             self.renderer.gaussians.prune(min_opacity=0.01, extent=1, max_screen_size=1)
             output_img.save(save_img_path)
+            
+            save_one_img_path = os.path.join(img_output_dir, self.opt.prompt + "_generated_one.png")
+            output_one_img.save(save_one_img_path)
             print(f"[INFO] Save 4-view image!")
         # save
         self.save_model(mode='model')

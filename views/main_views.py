@@ -1,22 +1,9 @@
 from flask import Blueprint, request
-
+from omegaconf import OmegaConf
+from utils import Step1
+from utils2 import Step2
+from thumbnail import obj_to_fbx, obj_to_thumbnail, remove_bg
 import os
-import cv2
-import time
-import tqdm
-import numpy as np
-from PIL import Image
-
-import torch
-import torch.nn.functional as F
-
-import rembg
-
-from cam_utils import orbit_camera, OrbitCamera
-from gs_renderer import Renderer, MiniCam
-
-from grid_put import mipmap_linear_grid_put_2d
-from mesh import Mesh, safe_normalize
 
 bp = Blueprint('main', __name__, url_prefix='/')
 
@@ -28,11 +15,6 @@ def hello_pybo():
 
 @bp.route('/text2obj', methods=['GET', 'POST'])
 def text_to_obj():
-    import argparse
-    from omegaconf import OmegaConf
-    from utils import Step1
-    from utils2 import Step2
-    
     prompt_txt = request.get_json()
     # print(prompt)
     prompt = prompt_txt['prompt']
@@ -47,7 +29,7 @@ def text_to_obj():
     
     ################################## train_1
     step1 = Step1(opt)
-    
+
     step1.train(opt.iters)   
     
     ################################## train_2
@@ -61,5 +43,17 @@ def text_to_obj():
     step2 = Step2(opt)
     
     step2.train(opt.iters_refine)
+
+    ################################## make_thumbnail
+    # opt.outdir : folder_dir ex) data/prompt  
+    # opt.mesh : obj_dir ex) data/prompt/prompt.obj
+    obj_dir = opt.mesh[:-9] + '.obj'
+    fbx_dir = obj_dir[:-3] + 'fbx'
+    texture_dir = obj_dir[:-4] + '_albedo.png'
+    thumbnail_dir = 'data/4-view_images/' + opt.prompt + '_generated_one.png'
+
+    obj_to_fbx(obj_dir, fbx_dir)
+    # obj_to_thumbnail(obj_dir, texture_dir)
+    remove_bg(thumbnail_dir)
     
     return 'finish_create_obj'
