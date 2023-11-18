@@ -21,3 +21,6 @@ images
 
 data
 nvdiffrast
+reference_imgs
+ref_data
+static

@@ -309,7 +309,7 @@ class Step2:
         self.input_img = self.input_img[..., ::-1].copy()
 
         # load prompt
-        file_prompt = file.replace("_rgba.png", "_caption.txt")
+        file_prompt = file.replace("_rm.png", "_caption.txt")
         if os.path.exists(file_prompt):
             print(f'[INFO] load prompt from {file_prompt}...')
             with open(file_prompt, "r") as f:

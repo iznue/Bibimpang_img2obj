@@ -42,7 +42,7 @@ def obj_to_thumbnail(obj_dir, texture_dir):
     # plotter.roll(-90)
     
     # plotter.zoom(1.4)
-    plotter.zoom(1.4).show().screenshot(obj_dir+"thumb.png")
+    plotter.zoom(1.4).show().screenshot(obj_dir+"_thumb.png")
 
 def remove_bg(png_path):
     model = 'u2net'
@@ -94,10 +94,12 @@ def remove_bg(png_path):
 
 
 if __name__ == "__main__":
-    obj_dir = 'logs/corgi_nurse_mesh.obj'
-    fbx_dir = 'logs/corgi_nurse_mesh.fbx'
-    t_dir = 'logs/corgi_nurse_mesh_albedo.png'
+    obj_dir = 'data/img_to_obj/apple/apple.obj'
+    fbx_dir = 'data/img_to_obj/apple/apple.fbx'
+    t_dir = 'data/img_to_obj/apple/apple_albedo.obj'
 
-    obj_to_fbx(obj_dir, fbx_dir)
-    fbx_to_obj(fbx_dir, obj_dir)
-    remove_bg(obj_dir, t_dir)
+    # obj_to_fbx(obj_dir, fbx_dir)
+    # fbx_to_obj(fbx_dir, obj_dir)
+    
+    obj_to_thumbnail(obj_dir, t_dir)
+    # remove_bg(obj_dir, t_dir)

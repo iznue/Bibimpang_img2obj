@@ -13,7 +13,7 @@ ref_size: 256
 density_thresh: 1
 
 ### Output
-outdir: logs
+outdir: data
 mesh_format: obj
 save_path: ???
 
@@ -25,9 +25,9 @@ lambda_zero123: 1
 # training batch size per iter
 batch_size: 1
 # training iterations for stage 1
-iters: 500
+iters: 600
 # training iterations for stage 2
-iters_refine: 50
+iters_refine: 60
 # training camera radius
 radius: 2
 # training camera fovy

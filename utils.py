@@ -54,7 +54,7 @@ class Step1:
 
         # input text
         self.prompt = ""
-        self.negative_prompt = "(worst quality, low quality:1.4), zombie, (interlocked fingers), [monochrome:0.8], lowres, text, error, cropped, worst quality, low quality, jpeg artifacts, ugly, duplicate, morbid, mutilated, out of frame, extra fingers, mutated hands, poorly drawn hands, poorly drawn face, mutation, deformed, blurry, bad anatomy, bad proportions, extra limbs, cloned face, disfigured, gross proportions, malformed limbs, missing arms, missing legs, extra arms, extra legs, fused fingers, too many fingers, long neck, username, watermark"
+        self.negative_prompt = ""
 
         # training stuff
         self.training = False
@@ -62,9 +62,9 @@ class Step1:
         self.step = 0
         self.train_steps = 1  # steps per rendering loop
         
-        # # load input data from cmdline
-        # if self.opt.input is not None:
-        #     self.load_input(self.opt.input)
+        # load input data from cmdline
+        if self.opt.input is not None:
+            self.load_input(self.opt.input) ############################# image to text
         
         # override prompt from cmdline
         if self.opt.prompt is not None:
@@ -435,30 +435,57 @@ class Step1:
             for i in tqdm.trange(iters):
                 self.train_step()
             ############################################################################################## mvdream 4-view 이미지 출력
-            print(self.opt.prompt)
-            print('#############################################################')
-            print(self.negative_prompt)
-            print('#############################################################')
-            print(self.step)
-            print('#############################################################')
-            dream_imgs = self.guidance_sd.prompt_to_img(self.opt.prompt, self.negative_prompt)
-            gird = np.concatenate([
-                np.concatenate([dream_imgs[0], dream_imgs[1]], axis=1),
-                np.concatenate([dream_imgs[2], dream_imgs[3]], axis=1),
-            ], axis=0)
-            img_output_dir = '/workspace/data/4-view_images'
-            output_img = Image.fromarray(gird)
-            output_one_img = Image.fromarray(dream_imgs[1])
-            save_img_path = os.path.join(img_output_dir, self.opt.prompt + "_generated.png")
+            # print(self.opt.prompt)
+            # print('#############################################################')
+            # print(self.negative_prompt)
+            # print('#############################################################')
+            # print(self.step)
+            # print('#############################################################')
+            # dream_imgs = self.guidance_sd.prompt_to_img(self.opt.prompt, self.negative_prompt)
+            # gird = np.concatenate([
+            #     np.concatenate([dream_imgs[0], dream_imgs[1]], axis=1),
+            #     np.concatenate([dream_imgs[2], dream_imgs[3]], axis=1),
+            # ], axis=0)
+            # img_output_dir = '/workspace/data/4-view_images'
+            # output_img = Image.fromarray(gird)
+            # output_one_img = Image.fromarray(dream_imgs[1])
+            # save_img_path = os.path.join(img_output_dir, self.opt.prompt + "_generated.png")
             # do a last prune
             self.renderer.gaussians.prune(min_opacity=0.01, extent=1, max_screen_size=1)
-            output_img.save(save_img_path)
+            # output_img.save(save_img_path)
             
-            save_one_img_path = os.path.join(img_output_dir, self.opt.prompt + "_generated_one.png")
-            output_one_img.save(save_one_img_path)
-            print(f"[INFO] Save 4-view image!")
+            # save_one_img_path = os.path.join(img_output_dir, self.opt.prompt + "_generated_one.png")
+            # output_one_img.save(save_one_img_path)
+            # print(f"[INFO] Save 4-view image!")
         # save
         self.save_model(mode='model')
         self.save_model(mode='geo+tex')
         # output_img.save(save_img_path)
-        # print(f"[INFO] Save 4-view image!")
+        # print(f"[INFO] Save 4-view image!") 
+        
+###################################################### image to text  
+    def load_input(self, file):
+        # load image
+        print(f'[INFO] load image from {file}...')
+        img = cv2.imread(file, cv2.IMREAD_UNCHANGED)
+        if img.shape[-1] == 3:
+            if self.bg_remover is None:
+                self.bg_remover = rembg.new_session()
+            img = rembg.remove(img, session=self.bg_remover)
+
+        img = cv2.resize(img, (self.W, self.H), interpolation=cv2.INTER_AREA)
+        img = img.astype(np.float32) / 255.0
+
+        self.input_mask = img[..., 3:]
+        # white bg
+        self.input_img = img[..., :3] * self.input_mask + (1 - self.input_mask)
+        # bgr to rgb
+        self.input_img = self.input_img[..., ::-1].copy()
+
+        # load prompt
+        # file_prompt = file.replace("_rgba.png", "_caption.txt")
+        file_prompt = file.replace("_rm.png", "_caption.txt")
+        if os.path.exists(file_prompt):
+            print(f'[INFO] load prompt from {file_prompt}...')
+            with open(file_prompt, "r") as f:
+                self.prompt = f.read().strip()
